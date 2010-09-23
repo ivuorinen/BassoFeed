@@ -2,88 +2,168 @@
 /**
  * Basso Radio Showtimes
  *
- * @author Ismo Vuorinen
- * @version $Id$
- * @copyright __MyCompanyName__, 22 September, 2010
- * @package default
- **/
-
-/**
  * Class for you peeps to get your fav. shows upcoming
  * showtime as an iCal-formatted feed. Includes crude
  * caching so basso.fi won't get bombed too much, yo!
+ *
+ * @author  Ismo Vuorinen
+ * @version 0.1.2010-09-22
+ * @copyright Copyright (c) 2010, Ismo Vuorinen
+ * @license http://opensource.org/licenses/mit-license.php The MIT License
+ * @package default
+ * @uses    simple_html_dom Scraping data and making it easier to handle
+ * @see     http://en.wikipedia.org/wiki/ICalendar
+ * @todo    Documentation
+ * @todo    More testing
  **/
-
-/**
-* BassoFeed
-* To get your groove on!
-*/
 class BassoFeed
 {
-    var $channel;
+    /**
+     * Show you listen to
+     * @var string
+     **/
+    var $show;
+    
+    /**
+     * List of showtimes
+     * @var array
+     */
     var $showtimes;
+    
+    /**
+     * Show title, desc, etc.
+     * @var array
+     */
     var $showinfo;
+    
+    /**
+     * File (and possibly folder) you use as cache
+     * @var string Default: "./cache/[show].txt"
+     */
     var $cachefile;
+    
+    /**
+     * How long the programpage should be cached in seconds
+     * @var int Default: 900
+     */
     var $cachetime;
     
-    function __construct($channel)
+    /**
+     * Is the data coming from cache or not
+     * @var bool
+     */
+    var $from_cache = 0;
+    
+    function __construct($show)
     {
-        $this->channel      = $channel;
-        $this->cachefile    = "cache-{$channel}.txt";
+        $this->show         = $show;
+        $this->cachefile    = "./cache/{$this->show}.txt";
         $this->cachetime    = 900;
         
         $this->generate();
     }
     
+    /**
+     * generate
+     * 
+     * The action sequence of the script.
+     * Used to run the process:
+     * * cache verification
+     * * scraping
+     * * gets 
+     *
+     * @return void
+     * @author Ismo Vuorinen
+     **/
     function generate()
     {
-        $fetch = file_get_html(
-            "http://www.basso.fi/radio/".$this->channel
-        );
+        // Load the data
+        $data               = $this->cache();
         
-        $this->showinfo     = $this->get_showinfo($fetch);
-        $this->showtimes    = $this->get_showtimes($fetch);
+        // Process the data
+        $this->showinfo     = $this->get_showinfo($data);
+        $this->showtimes    = $this->get_showtimes($data);
         
-        
-        #$this->ical_feed();
+        // Echo the iCal
+        $this->get_ical();
     }
     
-
+    /**
+     * cache
+     * Fetches the page to a cachefile and returns it
+     *
+     * @return mixed
+     * @author Ismo Vuorinen
+     **/
+    function cache()
+    {
+        $filemtime = 0;
+        if( is_readable($this->cachefile) ) {
+            $filemtime = filemtime($this->cachefile);            
+        }
+        if(
+            !$filemtime || (time() - $filemtime >= $this->cachetime)
+        ) {
+            $fetch = file_get_html(
+                "http://www.basso.fi/radio/".$this->show
+            );
+            file_put_contents($this->cachefile, $fetch);
+            $this->from_cache = false;
+            return $fetch;
+        } else {
+            $this->from_cache = true;
+            return file_get_html($this->cachefile);
+        }
+    }
     
+    /**
+     * get_showtimes
+     * Process loaded showpage and find our showtimes
+     * @param   mixed $fetch
+     * @uses    simple_html_dom::find|simple_html_dom::innertext
+     */
     function get_showtimes($fetch)
     {
+        // Find our sidebar columns and get the insides
         foreach($fetch->find('div.column_entry') as $m) {
             $div = $m->innertext;
-            
             $items[] = $div;
         }
         
+        // List of finnish daynames for elimination from the strings
         $finnish_dates = array(
             "Maanantai", "Tiistai", "Keskiviikko",
             "Torstai", "Perjantai", "Lauantai", "Sunnuntai"
         );
         
+        // Take the found broadcast times, strip tags and explode it
         $items = $items[1];
         $items = str_replace("<br />", "|", $items);
         $items = str_replace("Tulevia lähetysaikoja", "", $items);
         $items = explode("|", strip_tags($items));
         
-        foreach ($items as $n => $item) {
-            
+        // Take the processed showtimes and mangle to right format
+        foreach ($items as $n => $item)
+        {    
             $item = trim($item);
-            if( !empty($item) && strlen($item) > 2 ) {
+
+            if( !empty($item) && strlen($item) > 2 )
+            {
+                // Remove finnish daynames
                 $item = str_replace($finnish_dates, "", $item);
-                
+
+                // Split into 2 vars; start and end times
                 $dates = explode("-", trim($item));
                 $dates2 = explode(" ", $dates[0]);
-
+                
                 $dates_from  = $dates[0];
                 $dates_to    = $dates2[0]." ".$dates[1];
                 
                 $date = $dates2[0];
                 list($day, $month, $year) = explode(".", $date);
-                $date = "20{$year}-$month-$day";
+                $date = "20{$year}-$month-$day"; // We are on the 21st cent.
                 
+                // Unix timestamps
                 $time_f     = strtotime($date." ".$dates2[1]);
                 $time_t     = strtotime($date." ".$dates[1]);
                 
@@ -95,14 +175,19 @@ class BassoFeed
                 $stuff[$n]["time_t"]     = $time_t;
                 $stuff[$n]["date_f"]     = $date_f;
                 $stuff[$n]["date_t"]     = $date_t;
-                
-                // int mktime ([ int $hour = date("H") [, int $minute = date("i") [, int $second = date("s") [, int $month = date("n") [, int $day = date("j") [, int $year = date("Y") [, int $is_dst = -1 ]]]]]]] )
-
             }
         }
         return $stuff;
     }
     
+    /**
+     * get_showinfo
+     * Parses the show info from fetched data
+     *
+     * @return  array
+     * @todo    Document me
+     * @author  Ismo Vuorinen
+     **/
     function get_showinfo($fetch)
     {
         foreach($fetch->find('div#main_column_1') as $m) {
@@ -137,29 +222,40 @@ class BassoFeed
         $data = array(
             "title"     => $title,
             "desc"      => $desc,
-            #"cleaned"   => $cleaned,
-            #"raw"       => $items
+            "url"       => "http://www.basso.fi/radio/" . $this->show
         );
         
         return $data;
     }
-    
-    function ical_item()
+
+    /**
+     * get_ical
+     * Echo iCal-formatted calendar
+     *
+     * @return  str
+     * @todo    Document me
+     * @author  Ismo Vuorinen
+     **/
+    function get_ical()
     {
-        /**
-        *   BEGIN:VCALENDAR
-        *   VERSION:2.0
-        *   PRODID:-//hacksw/handcal//NONSGML v1.0//EN
-        *   BEGIN:VEVENT
-        *   UID:uid1@example.com
-        *   DTSTAMP:19970714T170000Z
-        *   ORGANIZER;CN=John Doe:MAILTO:john.doe@example.com
-        *   DTSTART:19970714T170000Z
-        *   DTEND:19970715T035959Z
-        *   SUMMARY:Bastille Day Party
-        *   END:VEVENT
-        *   END:VCALENDAR
-        */
+        echo "BEGIN:VCALENDAR\n"
+            ."VERSION:2.0\n"
+            ."PRODID:-//basso/feed//NONSGML v1.0//EN\n";
+        
+        foreach( $this->showtimes as $i )
+        {
+            
+            echo "BEGIN:VEVENT\n"
+                ."UID:".md5($this->show . $i["date_f"])."@basso.fi\n"
+                ."DTSTAMP:{$i["date_f"]}\n"
+                ."DTSTART:{$i["date_f"]}\n"
+                ."DTEND:{$i["date_t"]}\n"
+                ."SUMMARY:{$this->showinfo["title"]}\n"
+                ."DESCRIPTION:{$this->showinfo["desc"]}\n"
+                ."END:VEVENT\n";
+        }
+        
+        echo "END:VCALENDAR\n";
     }
     
     /**
