@@ -238,24 +238,25 @@ class BassoFeed
      **/
     function get_ical()
     {
-        echo "BEGIN:VCALENDAR\n"
-            ."VERSION:2.0\n"
-            ."PRODID:-//basso/feed//NONSGML v1.0//EN\n";
+        $cal = "BEGIN:VCALENDAR\n"
+                ."VERSION:2.0\n"
+                ."PRODID:-//basso/feed//NONSGML v1.0//EN\n";
         
         foreach( $this->showtimes as $i )
         {
-            
-            echo "BEGIN:VEVENT\n"
-                ."UID:".md5($this->show . $i["date_f"])."@basso.fi\n"
-                ."DTSTAMP:{$i["date_f"]}\n"
-                ."DTSTART:{$i["date_f"]}\n"
-                ."DTEND:{$i["date_t"]}\n"
-                ."SUMMARY:{$this->showinfo["title"]}\n"
-                ."DESCRIPTION:{$this->showinfo["desc"]}\n"
-                ."END:VEVENT\n";
+            $cal .= "BEGIN:VEVENT\n"
+                    ."UID:".md5($this->show . $i["date_f"])."@basso.fi\n"
+                    ."DTSTAMP:{$i["date_f"]}\n"
+                    ."DTSTART:{$i["date_f"]}\n"
+                    ."DTEND:{$i["date_t"]}\n"
+                    ."SUMMARY:{$this->showinfo["title"]}\n"
+                    ."DESCRIPTION:{$this->showinfo["desc"]}\n"
+                    ."END:VEVENT\n";
         }
         
-        echo "END:VCALENDAR\n";
+        $cal .= "END:VCALENDAR\n";
+        
+        return $cal;
     }
     
     /**
