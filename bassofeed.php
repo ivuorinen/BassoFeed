@@ -250,6 +250,11 @@ class BassoFeed {
                 .   "DTSTART;VALUE=DATE-TIME;TZID=GMT:{$i["date_f"]}\n"
                 .   "DTEND;VALUE=DATE-TIME;TZID=GMT:{$i["date_t"]}\n"
                 .   "DTSTAMP:{$i["date_f"]}\n"
+                .   "BEGIN:VALARM\n"
+                .   "TRIGGER:-PT15M\n"
+                .   "ACTION:DISPLAY\n"
+                .   "DESCRIPTION:{$this->showinfo["title"]}\n"
+                .   "END:VALARM\n"
                 .   "END:VEVENT\n";
         }
 
