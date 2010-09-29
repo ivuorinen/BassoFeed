@@ -11,7 +11,7 @@ Usage
 -----
 To get, for example the awesome Alas-show's broadcast times you 
 
-    header('Content-Type: text/html; charset=utf-8');
+    header('Content-Type: text/calendar; charset=utf-8');
     date_default_timezone_set('Europe/Helsinki');
     
     require_once("simple_html_dom.php");
@@ -21,3 +21,4 @@ To get, for example the awesome Alas-show's broadcast times you
     echo $basso_alas->get_ical();
 
 The "new BassoFeed(_showname_)" comes from the url, in Alas' case it's http://www.basso.fi/radio/*alas*
+The *Content-Type: text/calendar* -part is really important, use it!
