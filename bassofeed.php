@@ -100,6 +100,13 @@ class BassoFeed {
             $fetch = file_get_html(
                             "http://www.basso.fi/radio/" . $this->show
             );
+            
+            // Service is being updated
+            if( preg_match( '/Palvelua/i', $fetch) ) {
+                $this->from_cache = true;
+                return file_get_html($this->cachefile);
+            }
+            
             file_put_contents($this->cachefile, $fetch);
             $this->from_cache = false;
             return $fetch;
@@ -156,9 +163,9 @@ class BassoFeed {
                 $time_f = strtotime($date . " " . $dates2[1]);
                 $time_t = strtotime($date . " " . $dates[1]);
 
-                // We take -2 as timezone info 'coz the times are in +2
-                $date_f = $this->unixToiCal($time_f, -2);
-                $date_t = $this->unixToiCal($time_t, -2);
+                // We take -2 as timezone info 'coz the times are in +3
+                $date_f = $this->unixToiCal($time_f, -3);
+                $date_t = $this->unixToiCal($time_t, -3);
 
                 $stuff[$n]["time_f"] = $time_f;
                 $stuff[$n]["time_t"] = $time_t;
@@ -207,9 +214,9 @@ class BassoFeed {
 
 
         $data = array(
-            "title" => $title,
-            "desc" => $desc,
-            "url" => "http://www.basso.fi/radio/" . $this->show
+            "title"     => str_replace(";", "\;", $title),
+            "desc"      => str_replace(";", "\;", $desc),
+            "url"       => "http://www.basso.fi/radio/" . $this->show
         );
 
         return $data;
@@ -225,19 +232,12 @@ class BassoFeed {
      * */
     function get_ical() {
         $cal =      "BEGIN:VCALENDAR\n"
+                .   "X-WR-CALNAME:{$this->showinfo["title"]}\n"
+                .   "PRODID:-//BASSOFEED/FEED/EN\n"
                 .   "VERSION:2.0\n"
-                .   "PRODID:BASSOFEED\n"
                 .   "CALSCALE:GREGORIAN\n"
-                .   "X-WR-TIMEZONE:Etc/GMT\n"
-                .   "METHOD:PUBLISH\n"
-                .   "BEGIN:VTIMEZONE\n"
-                .   "TZID:GMT\n"
-                .   "BEGIN:STANDARD\n"
-                .   "DTSTART:20100101T010000\n"
-                .   "TZOFFSETTO:+0000\n"
-                .   "TZOFFSETFROM:+0000\n"
-                .   "END:STANDARD\n"
-                .   "END:VTIMEZONE\n";
+                .   "X-WR-TIMEZONE:Europe/Helsinki\n"
+                .   "METHOD:PUBLISH\n";
 
         foreach ($this->showtimes as $i) {
 
