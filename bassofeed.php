@@ -49,13 +49,49 @@ class BassoFeed {
      * @var bool
      */
     var $from_cache = 0;
+    /**
+     * Dealing with multiple shows?
+     * @var bool
+     */
+     var $multiple_shows = false;
 
     function __construct($show) {
-        $this->show = $show;
-        $this->cachefile = "./cache/{$this->show}.txt";
-        $this->cachetime = 900;
 
-        $this->generate();
+        if( is_array($show) ) {
+            $this->multiple_shows = true;
+            $this->multiple($show);
+            $this->get_ical();
+
+        } else {
+            $this->multiple_shows = false;
+            $this->show = $show;
+            $this->cachefile = "./cache/{$this->show}.txt";
+            $this->cachetime = 900;
+
+            $this->generate();
+        }
+        return false;
+    }
+
+    function multiple($array = array()) {
+
+        if( !empty($array) ) {
+            $this->cachetime = 900;
+            $alltimes = array();
+
+            foreach ($array as $show) {
+
+                $this->show = $show;
+                $this->cachefile    = "./cache/{$this->show}.txt";
+                $data = $this->cache();
+
+                $this->showtimes[$show] = $this->get_showtimes($data);
+                $this->showinfo[$show]  = $this->get_showinfo($data);
+            }
+
+
+        }
+
     }
 
     /**
@@ -100,13 +136,13 @@ class BassoFeed {
             $fetch = file_get_html(
                             "http://www.basso.fi/radio/" . $this->show
             );
-            
+
             // Service is being updated
             if( preg_match( '/Palvelua/i', $fetch) ) {
                 $this->from_cache = true;
                 return file_get_html($this->cachefile);
             }
-            
+
             file_put_contents($this->cachefile, $fetch);
             $this->from_cache = false;
             return $fetch;
@@ -216,6 +252,7 @@ class BassoFeed {
         $data = array(
             "title"     => str_replace(";", "\;", $title),
             "desc"      => str_replace(";", "\;", $desc),
+            "desc"      => str_replace(",", "\,", $desc),
             "url"       => "http://www.basso.fi/radio/" . $this->show
         );
 
@@ -231,31 +268,58 @@ class BassoFeed {
      * @author  Ismo Vuorinen
      * */
     function get_ical() {
+
         $cal =      "BEGIN:VCALENDAR\n"
-                .   "X-WR-CALNAME:{$this->showinfo["title"]}\n"
-                .   "PRODID:-//BASSOFEED/FEED/EN\n"
                 .   "VERSION:2.0\n"
+                .   "X-WR-CALNAME:BassoRadioFeed\n"
+                .   "PRODID:-//BASSOFEED/FEED/EN\n"
                 .   "CALSCALE:GREGORIAN\n"
                 .   "X-WR-TIMEZONE:Europe/Helsinki\n"
                 .   "METHOD:PUBLISH\n";
 
-        foreach ($this->showtimes as $i) {
+        if( $this->multiple_shows ) {
+            foreach ($this->showinfo as $show => $info) {
 
-            $cal .= "BEGIN:VEVENT\n"
-                .   "SUMMARY:{$this->showinfo["title"]}\n"
-                .   "DESCRIPTION:{$this->showinfo["desc"]}\n"
-                .   "LOCATION:Basso Radio 102.8 FM\n"
-                .   "UID:{$this->show}-{$i["date_f"]}/basso.fi\n"
-                .   "URL:http://basso.fi/radio/{$this->show}\n"
-                .   "DTSTART;VALUE=DATE-TIME;TZID=GMT:{$i["date_f"]}\n"
-                .   "DTEND;VALUE=DATE-TIME;TZID=GMT:{$i["date_t"]}\n"
-                .   "DTSTAMP:{$i["date_f"]}\n"
-                .   "BEGIN:VALARM\n"
-                .   "TRIGGER:-PT15M\n"
-                .   "ACTION:DISPLAY\n"
-                .   "DESCRIPTION:{$this->showinfo["title"]}\n"
-                .   "END:VALARM\n"
-                .   "END:VEVENT\n";
+                foreach ($this->showtimes[$show] as $i) {
+                    $cal .= "BEGIN:VEVENT\n"
+                        .   "SUMMARY:{$this->showinfo[$show]["title"]}\n"
+                        .   "DESCRIPTION:{$this->showinfo[$show]["desc"]}\n"
+                        .   "LOCATION:Basso Radio 102.8 FM\n"
+                        .   "UID:{$this->show}-{$i["date_f"]}/basso.fi\n"
+                        .   "URL:http://basso.fi/radio/{$this->show}\n"
+                        .   "DTSTART;VALUE=DATE-TIME;TZID=GMT:{$i["date_f"]}\n"
+                        .   "DTEND;VALUE=DATE-TIME;TZID=GMT:{$i["date_t"]}\n"
+                        .   "DTSTAMP:{$i["date_f"]}\n"
+                        .   "BEGIN:VALARM\n"
+                        .   "TRIGGER:-PT15M\n"
+                        .   "ACTION:DISPLAY\n"
+                        .   "DESCRIPTION:{$this->showinfo[$show]["title"]}\n"
+                        .   "END:VALARM\n"
+                        .   "END:VEVENT\n";
+                }
+            }
+
+        } else {
+            // One show info gets looped
+            foreach ($this->showtimes as $i) {
+
+                $cal .= "BEGIN:VEVENT\n"
+                    .   "SUMMARY:{$this->showinfo["title"]}\n"
+                    .   "DESCRIPTION:{$this->showinfo["desc"]}\n"
+                    .   "LOCATION:Basso Radio 102.8 FM\n"
+                    .   "UID:{$this->show}-{$i["date_f"]}/basso.fi\n"
+                    .   "URL:http://basso.fi/radio/{$this->show}\n"
+                    .   "DTSTART;VALUE=DATE-TIME;TZID=GMT:{$i["date_f"]}\n"
+                    .   "DTEND;VALUE=DATE-TIME;TZID=GMT:{$i["date_t"]}\n"
+                    .   "DTSTAMP:{$i["date_f"]}\n"
+                    .   "BEGIN:VALARM\n"
+                    .   "TRIGGER:-PT15M\n"
+                    .   "ACTION:DISPLAY\n"
+                    .   "DESCRIPTION:{$this->showinfo["title"]}\n"
+                    .   "END:VALARM\n"
+                    .   "END:VEVENT\n";
+            }
+
         }
 
         $cal .= "END:VCALENDAR\n";
