@@ -65,7 +65,7 @@ class BassoFeed {
         } else {
             $this->multiple_shows = false;
             $this->show = $show;
-            $this->cachefile = "./cache/{$this->show}.txt";
+            $this->cachefile = dirname(__FILE__) . DIRECTORY_SEPARATOR . "cache/{$this->show}.txt";
             $this->cachetime = 900;
 
             $this->generate();
@@ -82,7 +82,7 @@ class BassoFeed {
             foreach ($array as $show) {
 
                 $this->show = $show;
-                $this->cachefile    = "./cache/{$this->show}.txt";
+                $this->cachefile    = dirname(__FILE__) . DIRECTORY_SEPARATOR . "cache/{$this->show}.txt";
                 $data = $this->cache();
 
                 $this->showtimes[$show] = $this->get_showtimes($data);
