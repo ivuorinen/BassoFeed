@@ -1,3 +1,6 @@
+This project has been deprecated as a result of basso.fi redesign. Anticipated since the beginning.
+
+
 BassoFeed
 ---------
 
